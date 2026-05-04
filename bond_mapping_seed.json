@@ -1,0 +1,411 @@
+{
+  "_metadata": {
+    "name": "Raman Bond Mapping Database — Seed v0.1",
+    "description": "Vibrational mode assignments for 6 amino acids covered in Luca-Raman-Model dataset. Wavenumbers in cm^-1. Tolerances are typical observed shifts in mixture spectra.",
+    "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine", "Glucosamine"],
+    "wavenumber_range_cm-1": [801.62, 1799.0],
+    "version": "0.1.0-seed",
+    "source_notes": "Compiled from De Gelder et al. 2007 (J. Raman Spectrosc.), Zhu et al. 2011, Socrates 'Infrared and Raman Characteristic Group Frequencies' 3rd ed., and RRUFF database cross-references. ALL ASSIGNMENTS MUST BE VERIFIED against your specific instrument calibration before use in production. This is a SEED — expand by adding entries from your own data analysis.",
+    "schema_version": "1.0",
+    "last_updated": "2026-05-03",
+    "license": "CC BY 4.0 — please cite if used in publication"
+  },
+
+  "_schema": {
+    "fields": {
+      "wavenumber_cm-1": "Center wavenumber of the peak (float)",
+      "tolerance_cm-1": "Acceptable matching window (±) for shifted peaks in mixtures",
+      "intensity_relative": "Typical relative intensity: weak | medium | strong | very_strong",
+      "vibrational_mode": "Description of the vibrational mode (e.g. 'C-C ring breathing')",
+      "functional_group": "Chemical group(s) responsible",
+      "compounds": "List of compounds in our 6-class set that exhibit this peak",
+      "discriminative": "true if peak is highly specific to ONE compound, false if shared",
+      "notes": "Additional context (overlaps, conditions, references)"
+    }
+  },
+
+  "peaks": [
+    {
+      "id": "P001",
+      "wavenumber_cm-1": 850,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-COO- stretching / Fermi resonance",
+      "functional_group": "Carboxylate",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine"],
+      "discriminative": false,
+      "notes": "Common to most α-amino acids in zwitterionic form."
+    },
+    {
+      "id": "P002",
+      "wavenumber_cm-1": 893,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-C-N symmetric stretching",
+      "functional_group": "Aliphatic backbone",
+      "compounds": ["Alanine"],
+      "discriminative": true,
+      "notes": "Reasonably specific marker for alanine in mixtures."
+    },
+    {
+      "id": "P003",
+      "wavenumber_cm-1": 920,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-COO- stretching",
+      "functional_group": "Carboxylate / α-carbon",
+      "compounds": ["Glycine", "Threonine"],
+      "discriminative": false,
+      "notes": "Glycine has a strong band near 894 cm⁻¹; this entry captures higher-shifted forms."
+    },
+    {
+      "id": "P004",
+      "wavenumber_cm-1": 1003,
+      "tolerance_cm-1": 5,
+      "intensity_relative": "very_strong",
+      "vibrational_mode": "Aromatic ring breathing",
+      "functional_group": "Phenyl / Imidazole ring",
+      "compounds": ["Histidine"],
+      "discriminative": true,
+      "notes": "Hallmark peak of aromatic amino acids. For histidine: imidazole ring mode. Strong, sharp, highly discriminative."
+    },
+    {
+      "id": "P005",
+      "wavenumber_cm-1": 1042,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-O stretching (primary alcohol)",
+      "functional_group": "Hydroxyl C-OH",
+      "compounds": ["Serine", "Threonine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "C-O stretch in side-chain or sugar backbone. Multiple compounds contribute to this region."
+    },
+    {
+      "id": "P006",
+      "wavenumber_cm-1": 1080,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "strong",
+      "vibrational_mode": "C-O / C-C stretching (sugar ring)",
+      "functional_group": "Pyranose ring",
+      "compounds": ["Glucosamine"],
+      "discriminative": true,
+      "notes": "Characteristic of carbohydrate ring vibrations. Distinguishes glucosamine from amino acids."
+    },
+    {
+      "id": "P007",
+      "wavenumber_cm-1": 1125,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-N stretching",
+      "functional_group": "Primary amine C-NH2",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Universal C-N marker across all amine-containing compounds in the set. Use for total amine quantity."
+    },
+    {
+      "id": "P008",
+      "wavenumber_cm-1": 1180,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "weak",
+      "vibrational_mode": "Imidazole C-H in-plane bending",
+      "functional_group": "Imidazole",
+      "compounds": ["Histidine"],
+      "discriminative": true,
+      "notes": "Secondary discriminative marker for histidine alongside P004."
+    },
+    {
+      "id": "P009",
+      "wavenumber_cm-1": 1255,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "Amide III (β-sheet/random)",
+      "functional_group": "Amide N-H + C-N",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine"],
+      "discriminative": false,
+      "notes": "Amide III region. Strong in peptides; in free amino acids it appears as a weaker shoulder."
+    },
+    {
+      "id": "P010",
+      "wavenumber_cm-1": 1305,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "CH2 twisting",
+      "functional_group": "Methylene",
+      "compounds": ["Glycine", "Serine", "Threonine", "Histidine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "All compounds with CH2 contribute. Alanine (no CH2) is notably absent here."
+    },
+    {
+      "id": "P011",
+      "wavenumber_cm-1": 1350,
+      "tolerance_cm-1": 7,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-H bending (alpha-CH)",
+      "functional_group": "α-carbon C-H",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine"],
+      "discriminative": false,
+      "notes": "Common α-amino acid backbone marker."
+    },
+    {
+      "id": "P012",
+      "wavenumber_cm-1": 1410,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "strong",
+      "vibrational_mode": "COO- symmetric stretching",
+      "functional_group": "Carboxylate",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine"],
+      "discriminative": false,
+      "notes": "Strong band in zwitterionic amino acids. Combined with P016 (asym), can quantify total amino acid content."
+    },
+    {
+      "id": "P013",
+      "wavenumber_cm-1": 1455,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "CH2 / CH3 deformation",
+      "functional_group": "Aliphatic CH",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Universal aliphatic marker."
+    },
+    {
+      "id": "P014",
+      "wavenumber_cm-1": 1495,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "Imidazole ring stretching",
+      "functional_group": "Imidazole",
+      "compounds": ["Histidine"],
+      "discriminative": true,
+      "notes": "Tertiary histidine marker."
+    },
+    {
+      "id": "P015",
+      "wavenumber_cm-1": 1575,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "Imidazole C=C / C=N stretching",
+      "functional_group": "Imidazole",
+      "compounds": ["Histidine"],
+      "discriminative": true,
+      "notes": "Quaternary histidine marker. Combined with P004, P008, P014 = 4-peak fingerprint."
+    },
+    {
+      "id": "P016",
+      "wavenumber_cm-1": 1605,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "COO- asymmetric stretching",
+      "functional_group": "Carboxylate",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine"],
+      "discriminative": false,
+      "notes": "Counterpart of P012."
+    },
+    {
+      "id": "P017",
+      "wavenumber_cm-1": 1655,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "medium",
+      "vibrational_mode": "Amide I / N-H deformation",
+      "functional_group": "Amide / NH3+",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Broad band; for free amino acids primarily NH3+ deformation; for glucosamine includes amide if N-acetylated."
+    },
+    {
+      "id": "P018",
+      "wavenumber_cm-1": 935,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-OH bending / glycerol skeletal",
+      "functional_group": "Hydroxyl",
+      "compounds": ["Serine", "Threonine"],
+      "discriminative": false,
+      "notes": "Hydroxyl-bearing amino acid marker. Combined with P005 helps separate Ser/Thr from others."
+    },
+    {
+      "id": "P019",
+      "wavenumber_cm-1": 1100,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "strong",
+      "vibrational_mode": "C-O-C glycosidic / ring stretch",
+      "functional_group": "Pyranose ring",
+      "compounds": ["Glucosamine"],
+      "discriminative": true,
+      "notes": "Sugar ring vibration. Strong, distinctive for glucosamine."
+    },
+    {
+      "id": "P020",
+      "wavenumber_cm-1": 950,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "weak",
+      "vibrational_mode": "C-C / C-O stretch (sugar)",
+      "functional_group": "Pyranose ring",
+      "compounds": ["Glucosamine"],
+      "discriminative": false,
+      "notes": "Weaker sugar ring mode."
+    },
+    {
+      "id": "P021",
+      "wavenumber_cm-1": 1240,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "weak",
+      "vibrational_mode": "OH bending (in-plane)",
+      "functional_group": "Hydroxyl",
+      "compounds": ["Serine", "Threonine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Hydroxyl in-plane bending."
+    },
+    {
+      "id": "P022",
+      "wavenumber_cm-1": 1378,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "weak",
+      "vibrational_mode": "CH3 symmetric deformation",
+      "functional_group": "Methyl",
+      "compounds": ["Alanine", "Threonine"],
+      "discriminative": false,
+      "notes": "Methyl deformation. Helps separate Ala/Thr (which have CH3) from Gly/Ser (which don't)."
+    },
+    {
+      "id": "P023",
+      "wavenumber_cm-1": 1335,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "CH bending / CH3 wagging",
+      "functional_group": "Aliphatic",
+      "compounds": ["Alanine", "Threonine"],
+      "discriminative": false,
+      "notes": "Companion to P022 for methyl-bearing amino acids."
+    },
+    {
+      "id": "P024",
+      "wavenumber_cm-1": 1130,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-N stretch (amine in zwitterion)",
+      "functional_group": "Amine",
+      "compounds": ["Alanine"],
+      "discriminative": false,
+      "notes": "Alanine-leaning marker but overlaps with P007."
+    },
+    {
+      "id": "P025",
+      "wavenumber_cm-1": 1465,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "weak",
+      "vibrational_mode": "CH2 scissoring",
+      "functional_group": "Methylene",
+      "compounds": ["Glycine", "Serine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Higher-frequency methylene mode."
+    },
+    {
+      "id": "P026",
+      "wavenumber_cm-1": 1320,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "weak",
+      "vibrational_mode": "OH bending / CH2 wagging",
+      "functional_group": "Hydroxyl + methylene",
+      "compounds": ["Serine", "Glucosamine"],
+      "discriminative": false,
+      "notes": "Mixed mode region."
+    },
+    {
+      "id": "P027",
+      "wavenumber_cm-1": 870,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "weak",
+      "vibrational_mode": "Skeletal C-C / C-N",
+      "functional_group": "Backbone",
+      "compounds": ["Glycine"],
+      "discriminative": true,
+      "notes": "Glycine secondary marker (the smallest amino acid has very few peaks; this and P003 are key)."
+    },
+    {
+      "id": "P028",
+      "wavenumber_cm-1": 1029,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-C / C-O stretching",
+      "functional_group": "Backbone / hydroxyl",
+      "compounds": ["Threonine"],
+      "discriminative": false,
+      "notes": "Threonine-leaning region."
+    },
+    {
+      "id": "P029",
+      "wavenumber_cm-1": 905,
+      "tolerance_cm-1": 6,
+      "intensity_relative": "medium",
+      "vibrational_mode": "C-COO- / C-C stretching",
+      "functional_group": "Backbone",
+      "compounds": ["Threonine"],
+      "discriminative": false,
+      "notes": "Threonine secondary marker."
+    },
+    {
+      "id": "P030",
+      "wavenumber_cm-1": 1525,
+      "tolerance_cm-1": 8,
+      "intensity_relative": "weak",
+      "vibrational_mode": "NH3+ asymmetric deformation",
+      "functional_group": "Ammonium",
+      "compounds": ["Alanine", "Glycine", "Serine", "Threonine", "Histidine"],
+      "discriminative": false,
+      "notes": "Zwitterion marker; broad and weak."
+    }
+  ],
+
+  "_compound_fingerprints": {
+    "Alanine": {
+      "discriminative_peaks": ["P002"],
+      "supporting_peaks": ["P022", "P023", "P024"],
+      "absent_peaks_for_disambiguation": ["P004", "P006", "P010"],
+      "notes": "Has methyl (P022/P023), no CH2 (so P010 weak), no aromatic (no P004), no sugar (no P006/P019)."
+    },
+    "Glycine": {
+      "discriminative_peaks": ["P027"],
+      "supporting_peaks": ["P003", "P010"],
+      "absent_peaks_for_disambiguation": ["P004", "P006", "P022", "P018"],
+      "notes": "Smallest amino acid, has CH2 (P010) but no methyl (no P022), no hydroxyl (no P018)."
+    },
+    "Serine": {
+      "discriminative_peaks": [],
+      "supporting_peaks": ["P018", "P005", "P010", "P021", "P026"],
+      "absent_peaks_for_disambiguation": ["P004", "P006", "P022"],
+      "notes": "Hydroxyl + CH2, but smaller side chain than Threonine. Lacks methyl (no P022). Identification depends on combination, no single discriminative peak."
+    },
+    "Threonine": {
+      "discriminative_peaks": [],
+      "supporting_peaks": ["P018", "P022", "P023", "P028", "P029", "P005"],
+      "absent_peaks_for_disambiguation": ["P004", "P006"],
+      "notes": "Hydroxyl + methyl combination distinguishes from Ser (no methyl) and Ala (no hydroxyl)."
+    },
+    "Histidine": {
+      "discriminative_peaks": ["P004", "P008", "P014", "P015"],
+      "supporting_peaks": [],
+      "absent_peaks_for_disambiguation": ["P006", "P018", "P019", "P022"],
+      "notes": "Strongest fingerprint: 4 discriminative imidazole peaks. Easiest compound to identify."
+    },
+    "Glucosamine": {
+      "discriminative_peaks": ["P006", "P019"],
+      "supporting_peaks": ["P020", "P017"],
+      "absent_peaks_for_disambiguation": ["P004", "P012", "P016"],
+      "notes": "NOT an amino acid: no carboxylate (no P012/P016), but has amine (P007) and pyranose ring (P006/P019)."
+    }
+  },
+
+  "_usage_examples": {
+    "matching_a_peak": {
+      "input": {"detected_peak_cm-1": 1005, "intensity": 0.85},
+      "match_logic": "for entry in peaks: if abs(entry.wavenumber - 1005) <= entry.tolerance: candidates.append(entry)",
+      "expected_match": "P004 (1003 ±5) → imidazole ring breathing → Histidine",
+      "confidence": "high (within ±2 cm⁻¹ of center, very_strong intensity expected)"
+    },
+    "novelty_detection": {
+      "logic": "If a detected peak has no DB match within ANY tolerance window, flag as 'unknown'. Cluster unknowns by region to localize the novel chemistry.",
+      "example": "Detected peaks at 1620 and 1700 cm⁻¹ with no matches → likely C=O of ester/ketone or N-H of secondary amine → suggests external compound (perhaps tryptophan or proline)."
+    }
+  }
+}

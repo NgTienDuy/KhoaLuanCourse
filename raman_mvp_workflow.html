@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Raman Physics-Informed AI MVP — Convergence Workflow</title>
+<style>
+:root {
+  --color-bg: #fafafa;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #555;
+  --color-text-tertiary: #888;
+  --color-border-tertiary: #d0d0d0;
+  --border-radius-md: 6px;
+  --border-radius-lg: 10px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--color-bg);color:var(--color-text);padding:20px;line-height:1.4}
+.tree{padding:8px 0 24px;position:relative;max-width:1400px;margin:0 auto}
+.title{text-align:center;font-size:22px;font-weight:600;margin-bottom:6px}
+.subtitle{text-align:center;font-size:13px;color:var(--color-text-secondary);margin-bottom:18px}
+.layer{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;position:relative}
+.layer-label{font-size:11px;color:var(--color-text-tertiary);text-align:center;margin:8px 0 6px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.node-box{border-radius:var(--border-radius-md);padding:7px 10px;font-size:11.5px;cursor:pointer;text-align:center;min-width:130px;max-width:200px;flex:0 1 auto;transition:transform 0.15s,box-shadow 0.15s;border-width:1px;border-style:solid;line-height:1.3}
+.node-box:hover{transform:translateY(-2px);box-shadow:0 3px 12px rgba(0,0,0,0.12)}
+.node-box .tid{font-size:9.5px;opacity:0.65;display:block;margin-bottom:2px;font-weight:600}
+.node-box .lbl{font-weight:500;display:block;margin-bottom:2px}
+.node-box .meta{font-size:9.5px;opacity:0.7;font-style:italic;margin-top:2px}
+.gw{background:#EEEDFE;border-color:#AFA9EC;color:#3C3489}
+.gs{background:#E1F5EE;border-color:#5DCAA5;color:#085041}
+.ce{background:#FAECE7;border-color:#F0997B;color:#712B13}
+.if-b{background:#E6F1FB;border-color:#85B7EB;color:#0C447C}
+.int{background:#F1EFE8;border-color:#B4B2A9;color:#2C2C2A}
+.must{box-shadow:inset 0 0 0 2px rgba(220,38,38,0.4)}
+.opt{opacity:0.85;border-style:dashed}
+.root-box{background:linear-gradient(135deg,#3C3489,#0F6E56);color:#fff;border:none;padding:12px 22px;font-size:14px;font-weight:600;border-radius:var(--border-radius-lg);min-width:240px}
+.root-box .tid{color:rgba(255,255,255,0.75)}
+.arrows{text-align:center;color:var(--color-text-tertiary);font-size:13px;margin:4px 0;letter-spacing:2px;line-height:1}
+.legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:8px 0 18px;font-size:11px;color:var(--color-text-secondary)}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:12px;height:12px;border-radius:3px;border:1px solid}
+.d-gw{background:#EEEDFE;border-color:#AFA9EC}
+.d-gs{background:#E1F5EE;border-color:#5DCAA5}
+.d-ce{background:#FAECE7;border-color:#F0997B}
+.d-if{background:#E6F1FB;border-color:#85B7EB}
+.d-int{background:#F1EFE8;border-color:#B4B2A9}
+.d-must{background:#fff;border:2px solid rgba(220,38,38,0.4)}
+.d-opt{background:#fff;border:1px dashed #888}
+.sep{border-top:1px dashed var(--color-border-tertiary);margin:8px 24px}
+.summary-box{background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px;margin:18px auto;max-width:1100px;font-size:12px;color:var(--color-text-secondary)}
+.summary-box h3{font-size:13px;color:var(--color-text);margin-bottom:6px}
+.summary-box ul{margin-left:18px;margin-top:4px}
+.summary-box li{margin:2px 0}
+.summary-box code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:11px}
+@media(prefers-color-scheme:dark){
+:root{--color-bg:#1a1a1a;--color-text:#e5e5e5;--color-text-secondary:#aaa;--color-text-tertiary:#888;--color-border-tertiary:#444}
+.gw{background:#26215C;border-color:#534AB7;color:#CECBF6}
+.gs{background:#04342C;border-color:#0F6E56;color:#9FE1CB}
+.ce{background:#4A1B0C;border-color:#993C1D;color:#F5C4B3}
+.if-b{background:#042C53;border-color:#185FA5;color:#B5D4F4}
+.int{background:#2C2C2A;border-color:#5F5E5A;color:#D3D1C7}
+.summary-box{background:#252525;border-color:#444}
+.summary-box code{background:#333;color:#ddd}
+.d-must{background:transparent}
+.d-opt{background:transparent}
+.root-box{background:linear-gradient(135deg,#534AB7,#1D9E75)}
+}
+</style>
+</head>
+<body>
+<div class="tree">
+
+<div class="title">Raman Physics-Informed AI MVP — Convergence Workflow</div>
+<div class="subtitle">14-day MVP · Architecture X (with Y upgrades if time permits) · ~120 estimated hours</div>
+
+<div class="legend">
+<div class="legend-item"><div class="legend-dot d-gw"></div>Groundwork</div>
+<div class="legend-item"><div class="legend-dot d-gs"></div>Gold Standard</div>
+<div class="legend-item"><div class="legend-dot d-ce"></div>Core Engine</div>
+<div class="legend-item"><div class="legend-dot d-if"></div>Interface</div>
+<div class="legend-item"><div class="legend-dot d-int"></div>Integration</div>
+<div class="legend-item"><div class="legend-dot d-must"></div>Must-Have</div>
+<div class="legend-item"><div class="legend-dot d-opt"></div>Optional/Stretch</div>
+</div>
+
+<div class="layer-label">Layer 0 — Foundations (parallelizable, Day 1–3)</div>
+<div class="layer">
+<div class="node-box gw must"><span class="tid">T01 · 4h</span><span class="lbl">SOTA Audit</span><span class="meta">Review 10 baseline models from old thesis; identify black-box weaknesses; write gap analysis 1-pager</span></div>
+<div class="node-box gw must"><span class="tid">T02 · 3h</span><span class="lbl">Repo Bootstrap</span><span class="meta">New GitHub repo, project skeleton, requirements.txt, README, .gitignore, license</span></div>
+<div class="node-box gw must"><span class="tid">T03 · 5h</span><span class="lbl">Dataloader Port</span><span class="meta">Port DataLoader from old repo to PyTorch standard format; verify shape (N,1024)</span></div>
+<div class="node-box gw must"><span class="tid">T04 · 3h</span><span class="lbl">Classical Preprocess</span><span class="meta">Asymmetric LS baseline + cosmic ray filter + SG smoothing + SNV normalization (fixed pipeline)</span></div>
+<div class="node-box gw must"><span class="tid">T05 · 4h</span><span class="lbl">Bond Mapping DB</span><span class="meta">Use provided seed JSON; verify wavenumbers against literature; expand to 50+ entries</span></div>
+</div>
+
+<div class="layer">
+<div class="node-box gs must"><span class="tid">T06 · 3h</span><span class="lbl">Reference Pure Spectra</span><span class="meta">Extract pure samples per amino acid (10 phổ × 6 aa); compute mean spectrum per compound</span></div>
+<div class="node-box gs must"><span class="tid">T07 · 4h</span><span class="lbl">Split Strategy A</span><span class="meta">Composition-level OOD: 42/6/6 vials random split + 60/20/20 sample split (kế thừa từ thesis)</span></div>
+<div class="node-box gs opt"><span class="tid">T08 · 3h</span><span class="lbl">Split Strategy B</span><span class="meta">Component-level OOD: hold out 1 amino acid (Histidine recommended) for novelty test</span></div>
+<div class="node-box gs must"><span class="tid">T09 · 3h</span><span class="lbl">Metrics Module</span><span class="meta">Implement: Acc, MAE, MSE, AUROC, Cosine Sim, Constraint Violation Rate (CVR)</span></div>
+</div>
+
+<div class="arrows">↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 1 — Core Components (Day 4–6)</div>
+<div class="layer">
+<div class="node-box ce must"><span class="tid">T10 · 6h</span><span class="lbl">1D-ResNet Backbone</span><span class="meta">Port from old thesis (best baseline). Output: 256-dim feature vector</span></div>
+<div class="node-box ce must"><span class="tid">T11 · 4h</span><span class="lbl">Quantification Head</span><span class="meta">FC + Softmax → 6-dim simplex (% per compound). Sum-to-1 constraint built in</span></div>
+<div class="node-box ce must"><span class="tid">T12 · 5h</span><span class="lbl">Reconstruction Module</span><span class="meta">s_recon = Σ(α_i × pure_ref_i × scale_i); learnable scale factors per compound</span></div>
+<div class="node-box ce must"><span class="tid">T13 · 4h</span><span class="lbl">Physics Loss</span><span class="meta">L_phys = ||s_input - s_recon||² + cosine_distance term. Mix weight β to be tuned</span></div>
+<div class="node-box ce must"><span class="tid">T14 · 3h</span><span class="lbl">Combined Loss</span><span class="meta">L_total = α·L_quant(MAE) + β·L_phys + γ·L_reg. Default α=1, β=0.5, γ=0.01</span></div>
+</div>
+
+<div class="arrows">↓ ↘ ↓ ↙ ↓</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 2 — Training & Initial Validation (Day 7)</div>
+<div class="layer">
+<div class="node-box ce must"><span class="tid">T15 · 5h</span><span class="lbl">Train Loop v1</span><span class="meta">Adam optimizer, cosine LR schedule, early stopping on val MAE. Target: MAE ≤ 0.025</span></div>
+<div class="node-box ce must"><span class="tid">T16 · 3h</span><span class="lbl">Augmentation</span><span class="meta">Random shift ±10 cm⁻¹, intensity scaling ±10%, additive Gaussian noise σ=0.005</span></div>
+<div class="node-box gs must"><span class="tid">T17 · 4h</span><span class="lbl">Mid-Checkpoint</span><span class="meta">Day-7 gate: ID Acc ≥ 85%, Quant MAE ≤ 0.04. Below this → simplify or fix bugs</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 3 — OOD & Explanation (Day 8–10)</div>
+<div class="layer">
+<div class="node-box ce must"><span class="tid">T18 · 5h</span><span class="lbl">MC Dropout Wrapper</span><span class="meta">50 forward passes with dropout active → predictive variance per output dim</span></div>
+<div class="node-box ce must"><span class="tid">T19 · 4h</span><span class="lbl">OOD Score Function</span><span class="meta">OOD_score = w1·recon_error + w2·predictive_variance. Calibrate threshold on val set</span></div>
+<div class="node-box if-b must"><span class="tid">T20 · 4h</span><span class="lbl">Peak Extraction</span><span class="meta">scipy.signal.find_peaks + Voigt fitting (lmfit) → (position, intensity, FWHM) per peak</span></div>
+<div class="node-box if-b must"><span class="tid">T21 · 4h</span><span class="lbl">Symbolic Mapper</span><span class="meta">Match each peak to bond mapping DB (±tolerance cm⁻¹). Output: bond/mode/groups list</span></div>
+<div class="node-box if-b must"><span class="tid">T22 · 3h</span><span class="lbl">Novelty Localization</span><span class="meta">For OOD samples: highlight peaks not matching any DB entry → "unknown peaks" report</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 4 — Benchmark & Comparison (Day 11)</div>
+<div class="layer">
+<div class="node-box gs must"><span class="tid">T23 · 4h</span><span class="lbl">Baseline 1: PCA+SVM</span><span class="meta">Simple, fast, interpretable lower-bound. From sklearn</span></div>
+<div class="node-box gs must"><span class="tid">T24 · 3h</span><span class="lbl">Baseline 2: 1D-ResNet</span><span class="meta">Same backbone but WITHOUT physics loss. Pure supervised. Strong ML baseline</span></div>
+<div class="node-box gs must"><span class="tid">T25 · 4h</span><span class="lbl">Comparison Table</span><span class="meta">CSV + Markdown table: model × {ID Acc, MAE, OOD AUROC, CVR}. Bold winning cells</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 5 — Reporting Interface (Day 12)</div>
+<div class="layer">
+<div class="node-box if-b must"><span class="tid">T26 · 4h</span><span class="lbl">Report Generator</span><span class="meta">Function: predict() → JSON+Markdown report (composition, peaks, bonds, OOD, recon plot)</span></div>
+<div class="node-box if-b must"><span class="tid">T27 · 5h</span><span class="lbl">Visualization Module</span><span class="meta">Plot: input vs reconstructed; peaks annotated with bond labels; OOD heatmap overlay</span></div>
+<div class="node-box if-b opt"><span class="tid">T28 · 6h</span><span class="lbl">Streamlit Dashboard</span><span class="meta">Upload spectrum → run predict() → display report. 3-tab UI: Input, Analysis, Report</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 6 — Optional Upgrades (Day 13 if ahead)</div>
+<div class="layer">
+<div class="node-box ce opt"><span class="tid">T29 · 6h</span><span class="lbl">VAE Augmentation</span><span class="meta">Train VAE on training spectra; sample to augment underrepresented mixtures</span></div>
+<div class="node-box gs opt"><span class="tid">T30 · 4h</span><span class="lbl">External Dataset Test</span><span class="meta">Try Bacteria-ID or RRUFF subset as fully OOD; verify novelty detection generalizes</span></div>
+<div class="node-box ce opt"><span class="tid">T31 · 4h</span><span class="lbl">Architecture Y Upgrade</span><span class="meta">Add VAE branch to backbone; reconstruction via decoder. Only if T17 passed comfortably</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 7 — Documentation & Polish (Day 14)</div>
+<div class="layer">
+<div class="node-box int must"><span class="tid">T32 · 4h</span><span class="lbl">Test Suite</span><span class="meta">Unit tests for: dataloader, preprocess, peak extraction, OOD score, end-to-end predict</span></div>
+<div class="node-box int must"><span class="tid">T33 · 4h</span><span class="lbl">English Report</span><span class="meta">Methodology + Results + Discussion (2-3 pages) for thesis defense / future paper</span></div>
+<div class="node-box int must"><span class="tid">T34 · 3h</span><span class="lbl">Documentation</span><span class="meta">Update README with quickstart, results summary, citation. Inline docstrings checked</span></div>
+</div>
+
+<div class="arrows">↘ ↓ ↙</div>
+<div class="sep"></div>
+
+<div class="layer-label">Layer 8 — Deliverable</div>
+<div class="layer">
+<div class="root-box"><span class="tid">FINAL · ~120h total</span><span class="lbl">Raman_Physics_AI_MVP/</span></div>
+</div>
+
+<div class="summary-box">
+<h3>How to read this workflow</h3>
+<p>Each node = one task with ID, estimated hours, label, and 1-line description. Tasks within the same layer can usually run in parallel. Tasks in later layers depend on earlier layers (the convergence). Solid borders = must-have; dashed borders = optional. Red-tinted shadow = critical path (cannot skip without breaking downstream).</p>
+<ul>
+<li><strong>Total estimated effort:</strong> ~120 hours over 14 days = ~8.5 h/day. Realistic for a focused MVP sprint.</li>
+<li><strong>Critical path (red):</strong> T02 → T03 → T10 → T11 → T15 → T17 → T18 → T26 → T33. If any of these slip, the whole project slips.</li>
+<li><strong>Day-7 gate (T17):</strong> If your model isn't hitting baseline by Day 7, STOP and simplify. Better to ship a smaller working MVP than a broken big one.</li>
+<li><strong>Optional tier (T08, T28, T29, T30, T31):</strong> Only attempt if Day 7 went smoothly. T28 (Streamlit) is highest-value optional for thesis defense.</li>
+</ul>
+</div>
+
+</div>
+</body>
+</html>
