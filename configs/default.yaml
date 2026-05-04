@@ -24,11 +24,15 @@ compounds:
   full_names:   [Alanine, Asparagine, "Aspartic Acid", "Glutamic Acid", Histidine,  Glucosamine]
   num_classes:  6
 
-# --- Wavenumber axis (auto-detected from data.csv at load time; these are reference values) ---
+# --- Wavenumber axis ---
+# IMPORTANT: column headers in data.csv are WAVELENGTHS (nm), not wavenumbers.
+# Range 801.62–931.28 nm → after Raman shift conversion ≈ 270–2000 cm⁻¹ (fingerprint region).
+# The dataloader auto-detects spectral columns and converts via:
+#   wavenumber_cm_inv = (1/laser_wl_nm − 1/wavelength_nm) × 1e7
 wavenumber:
-  start_cm_inv: 801.62
-  end_cm_inv:   931.28
-  num_points:   1024              # detected at runtime; this is the expected value
+  laser_wavelength_nm: 784.815734863281   # excitation laser (from old project / instrument calibration)
+  source_columns_are: "wavelength_nm"     # "wavelength_nm" | "wavenumber_cm_inv"
+  expected_num_points: 1024               # validated at runtime; loader will warn on mismatch
 
 # --- Global paths (relative to project root) ---
 paths:

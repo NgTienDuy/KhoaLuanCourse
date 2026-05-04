@@ -139,7 +139,7 @@ If you use this work, please cite:
   title  = {Raman Physics-Informed AI MVP},
   year   = {2026},
   note   = {Undergraduate thesis project},
-  url    = {https://github.com/<your-username>/Raman-Physics-AI}
+  url    = {https://github.com/NgTienDuy/KhoaLuanCourse}
 }
 ```
 
