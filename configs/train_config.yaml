@@ -1,0 +1,47 @@
+# =============================================================
+# Training configuration
+# =============================================================
+
+trainer:
+  device: "auto"                  # "auto" | "cuda" | "cpu"
+  epochs: 50
+  early_stopping_patience: 8
+  early_stopping_metric: "val_mae"  # lower is better
+  gradient_clip_norm: 1.0
+  log_interval_steps: 20
+  val_every_n_epochs: 1
+  save_every_n_epochs: 5
+
+optimizer:
+  name: "adam"
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-5
+  betas: [0.9, 0.999]
+
+scheduler:
+  name: "cosine"                  # alternatives: "step", "plateau", "none"
+  warmup_epochs: 2
+  min_lr_ratio: 0.01              # final_lr = initial_lr * min_lr_ratio
+
+loss:
+  alpha_quant: 1.0                # weight on MAE quantification loss
+  beta_phys:   0.5                # weight on physics reconstruction loss
+  gamma_reg:   0.01               # L2 weight regularization (additional to optimizer)
+  lambda_cosine: 0.3              # cosine-distance weight INSIDE physics loss term
+
+  # Physics loss internal composition:
+  #   physics_loss = (1 - lambda_cosine) * MSE(s_recon, s_input)
+  #                + lambda_cosine       * (1 - cos_sim(s_recon, s_input))
+
+logging:
+  use_wandb: false                # set true if you have a W&B account
+  wandb_project: "raman-physics-ai"
+  wandb_entity: null
+  use_tensorboard: true
+  tensorboard_dir: "results/logs/tb"
+
+checkpointing:
+  save_best: true
+  save_last: true
+  metric: "val_mae"
+  mode: "min"

@@ -1,0 +1,61 @@
+# =============================================================
+# Data configuration
+# =============================================================
+
+dataloader:
+  batch_size: 64
+  num_workers: 4                  # set to 0 on Windows if you hit issues
+  pin_memory: true
+  shuffle_train: true
+  drop_last_train: false
+
+split:
+  # Which split scheme to use:
+  #   "A"       — composition-level OOD: 42/6/6 vials -> train/val/test
+  #   "A_prime" — sample-level random:   60/20/20 fraction
+  #   "B"       — component-level OOD: hold out all mixtures containing one compound
+  scheme: "A"
+
+  # For scheme A (composition-level):
+  A:
+    num_train_vials: 42
+    num_val_vials: 6
+    num_test_vials: 6
+    seed: 42
+
+  # For scheme A' (sample-level):
+  A_prime:
+    train_frac: 0.60
+    val_frac:   0.20
+    test_frac:  0.20
+    seed: 42
+
+  # For scheme B (component-level OOD), default holdout = His (strongest fingerprint):
+  B:
+    holdout_compound: "Histidine"
+    seed: 42
+
+augmentation:
+  enabled: true
+  random_shift_cm_inv: 10         # ±10 cm⁻¹ peak shift (simulates instrument drift)
+  intensity_scale_range: [0.9, 1.1]
+  gaussian_noise_sigma: 0.005     # additive noise on normalized spectra
+  apply_prob: 0.5                 # per-augmentation independent application probability
+
+preprocessing:
+  # If true, the dataloader applies the classical pipeline on-the-fly.
+  # If false, expects pre-cached tensors in data/processed/.
+  apply_on_the_fly: false
+
+  cosmic_ray_method: "median_filter"   # alternatives: "whitaker_hayes"
+  cosmic_ray_kernel_size: 5
+
+  baseline_method: "asls"               # alternatives: "airpls"
+  asls_lam: 1.0e+5                      # smoothness parameter
+  asls_p:   0.01                        # asymmetry parameter
+  asls_max_iter: 30
+
+  savgol_window: 11
+  savgol_polyorder: 3
+
+  snv_eps: 1.0e-8                       # numerical floor for std

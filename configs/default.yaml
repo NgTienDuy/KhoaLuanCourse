@@ -1,0 +1,43 @@
+# =============================================================
+# Default configuration — Raman Physics-Informed AI MVP
+#
+# This file is the single source of truth for:
+#   - global paths
+#   - random seed
+#   - compound list & ordering
+#   - dataset wavenumber metadata
+#
+# Task-specific overrides live in:
+#   - configs/data_config.yaml
+#   - configs/model_config.yaml
+#   - configs/train_config.yaml
+# =============================================================
+
+project:
+  name: raman-physics-ai
+  version: "0.1.0.dev0"
+  seed: 42
+
+# --- Compound list (order is the canonical label order, columns 1026-1031 of data.csv) ---
+compounds:
+  short_names:  [Ala,    Asn,        Asp,             Glu,             His,        GlcN]
+  full_names:   [Alanine, Asparagine, "Aspartic Acid", "Glutamic Acid", Histidine,  Glucosamine]
+  num_classes:  6
+
+# --- Wavenumber axis (auto-detected from data.csv at load time; these are reference values) ---
+wavenumber:
+  start_cm_inv: 801.62
+  end_cm_inv:   931.28
+  num_points:   1024              # detected at runtime; this is the expected value
+
+# --- Global paths (relative to project root) ---
+paths:
+  data_raw_csv:        "data/raw/data.csv"
+  data_processed_dir:  "data/processed"
+  data_splits_dir:     "data/splits"
+  data_reference_dir:  "data/reference"
+  bond_mapping_json:   "engine/bond_mapping.json"
+  reference_spectra:   "engine/reference_spectra.npy"
+  checkpoints_dir:     "checkpoints"
+  results_dir:         "results"
+  logs_dir:            "results/logs"

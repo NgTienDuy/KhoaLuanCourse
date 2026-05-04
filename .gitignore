@@ -1,34 +1,81 @@
-# Python
+# ============================================================
+# .gitignore — Raman Physics-Informed AI MVP
+# ============================================================
+
+# --- Python ---
 __pycache__/
 *.py[cod]
+*$py.class
 *.egg-info/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtual environments ---
 .venv/
+venv/
+env/
 .python-version
 
-# Data (large files)
+# --- Data (large files; keep raw data out of git) ---
 data/raw/*.csv
+data/raw/*.npy
+data/raw/*.npz
 data/processed/*.pt
+data/processed/*.npy
+data/processed/*.npz
+
+# --- Pure reference spectra (regenerable from scripts/extract_pure_references.py) ---
+# Comment the next line if you WANT to commit them (small, useful for reproducibility):
+# data/reference/*.npy
+# engine/reference_spectra.npy
+
+# --- Model checkpoints ---
 checkpoints/*.pt
+checkpoints/*.pth
 checkpoints/*.pkl
+checkpoints/baselines/*.pt
+checkpoints/baselines/*.pkl
 
-# Results (selective: commit small files, gitignore large ones)
-results/figures/*.png        # comment out if you want figures in repo
+# --- Results: large binary outputs ---
+results/figures/**/*.png
+results/figures/**/*.jpg
+results/figures/**/*.pdf
 results/sanity/*.png
+# Keep the small ones (csv/md/json) tracked:
+!results/training_log.csv
+!results/benchmark_table.md
+!results/benchmark_table.csv
+!results/midcheckpoint_report.md
+!results/reports/*.md
+!results/reports/*.json
 
-# IDE
-.vscode/
-.idea/
-*.swp
+# --- Experiment tracking ---
+wandb/
+runs/
+mlruns/
+lightning_logs/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Jupyter
+# --- Notebooks ---
 .ipynb_checkpoints/
 *.ipynb_meta
 
-# Logs
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs ---
 *.log
-wandb/
-runs/
+logs/
