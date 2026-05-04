@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+
+# Data (large files)
+data/raw/*.csv
+data/processed/*.pt
+checkpoints/*.pt
+checkpoints/*.pkl
+
+# Results (selective: commit small files, gitignore large ones)
+results/figures/*.png        # comment out if you want figures in repo
+results/sanity/*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_meta
+
+# Logs
+*.log
+wandb/
+runs/
