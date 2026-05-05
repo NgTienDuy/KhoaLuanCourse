@@ -242,3 +242,102 @@ class TestSplits:
         from src.data.splits import split_A_prime_random
         with pytest.raises(ValueError):
             split_A_prime_random(table, train_frac=0.5, val_frac=0.3, test_frac=0.3, seed=42)
+
+
+# ───────────────────────────────────────────────────────────────────────────
+#  Preprocessing tests (T04)
+# ───────────────────────────────────────────────────────────────────────────
+
+class TestPreprocessing:
+    def test_remove_cosmic_rays_preserves_shape(self):
+        from src.data.preprocess import remove_cosmic_rays
+        s = np.random.RandomState(0).randn(1024).astype(np.float32) * 100 + 5000
+        out = remove_cosmic_rays(s)
+        assert out.shape == s.shape
+        assert out.dtype == s.dtype
+
+    def test_remove_cosmic_rays_reduces_spike(self):
+        """Inject a clear cosmic spike; the algorithm must reduce it."""
+        from src.data.preprocess import remove_cosmic_rays
+        rng = np.random.RandomState(0)
+        s = (rng.randn(1024) * 50 + 5000).astype(np.float32)
+        s_spiked = s.copy()
+        s_spiked[500] = s[500] * 100  # huge cosmic
+        s_clean = remove_cosmic_rays(s_spiked, threshold=5.0)
+        assert abs(s_clean[500] - s[500]) < abs(s_spiked[500] - s[500])
+
+    def test_savgol_window_must_be_odd(self):
+        from src.data.preprocess import savitzky_golay
+        s = np.random.RandomState(0).randn(1024).astype(np.float32)
+        with pytest.raises(ValueError):
+            savitzky_golay(s, window=10, polyorder=3)
+
+    def test_savgol_polyorder_lt_window(self):
+        from src.data.preprocess import savitzky_golay
+        s = np.random.RandomState(0).randn(1024).astype(np.float32)
+        with pytest.raises(ValueError):
+            savitzky_golay(s, window=5, polyorder=5)
+
+    def test_snv_invariants(self):
+        from src.data.preprocess import snv_normalize
+        rng = np.random.RandomState(0)
+        s = (rng.randn(1024) * 1000 + 5000).astype(np.float32)
+        s_n = snv_normalize(s)
+        assert abs(s_n.mean()) < 1e-3
+        assert abs(s_n.std() - 1.0) < 1e-3
+
+    def test_snv_flat_input_safe(self):
+        """Constant spectrum should not divide-by-zero, must return mean-centred."""
+        from src.data.preprocess import snv_normalize
+        s = np.full(1024, 1234.0, dtype=np.float32)
+        out = snv_normalize(s)
+        assert np.isfinite(out).all()
+
+    def test_pipeline_deterministic(self, table):
+        from src.data.preprocess import preprocess_pipeline
+        s = table.spectra[0]
+        a = preprocess_pipeline(s)
+        b = preprocess_pipeline(s)
+        assert np.array_equal(a, b)
+
+    def test_pipeline_output_invariants(self, table):
+        from src.data.preprocess import preprocess_pipeline
+        s = preprocess_pipeline(table.spectra[0])
+        assert s.shape == table.spectra[0].shape
+        assert abs(s.mean()) < 1e-3
+        assert abs(s.std() - 1.0) < 1e-3
+        assert not np.isnan(s).any()
+
+    def test_is_preprocessed_flag(self, table):
+        from src.data.preprocess import preprocess_pipeline
+        already = preprocess_pipeline(table.spectra[0])
+        passthrough = preprocess_pipeline(already, is_preprocessed=True)
+        assert np.array_equal(already, passthrough)
+
+    def test_preprocess_batch_shape(self, table):
+        from src.data.preprocess import preprocess_batch
+        sub = table.spectra[:8]
+        out = preprocess_batch(sub)
+        assert out.shape == sub.shape
+        assert out.dtype == sub.dtype
+        # Each row should be SNV-normalized
+        assert np.allclose(out.mean(axis=1), 0, atol=1e-3)
+        assert np.allclose(out.std(axis=1), 1, atol=1e-3)
+
+    def test_make_preprocess_fn_returns_none_when_disabled(self):
+        from src.data.preprocess import make_preprocess_fn
+        cfg = {"preprocessing": {"apply_on_the_fly": False}}
+        assert make_preprocess_fn(cfg) is None
+
+    def test_make_preprocess_fn_returns_callable_when_enabled(self):
+        from src.data.preprocess import make_preprocess_fn
+        cfg = {"preprocessing": {"apply_on_the_fly": True,
+                                  "cosmic_threshold": 5.0,
+                                  "asls_lam": 1e5, "asls_p": 0.01, "asls_max_iter": 10,
+                                  "savgol_window": 11, "savgol_polyorder": 3,
+                                  "snv_eps": 1e-8}}
+        fn = make_preprocess_fn(cfg)
+        assert callable(fn)
+        s = np.random.RandomState(0).randn(1024).astype(np.float32) * 100 + 5000
+        out = fn(s)
+        assert out.shape == s.shape

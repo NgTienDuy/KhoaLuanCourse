@@ -43,7 +43,11 @@ split:
     test_frac:  0.20
     seed: 42
 
-  # For scheme B (component-level OOD), default holdout = His (strongest fingerprint):
+  # For scheme B (component-level OOD).
+  # ⚠ NOTE: with the current dataset every compound appears in 49/54 vials,
+  #   so any single-compound holdout reduces the train pool to ~5 vials.
+  #   Scheme B is therefore documented but not recommended as a primary
+  #   evaluation protocol on this dataset; treat its outputs as a stress-test.
   B:
     holdout_compound: "Histidine"
     val_frac_within_train_pool: 0.15        # fraction of non-holdout vials reserved for val
@@ -58,18 +62,19 @@ augmentation:
 
 preprocessing:
   # If true, the dataloader applies the classical pipeline on-the-fly.
-  # If false, expects pre-cached tensors in data/processed/.
+  # If false, expects pre-cached tensors in data/processed/ (built by
+  # scripts/prepare_data.py).
   apply_on_the_fly: false
 
-  cosmic_ray_method: "median_filter"   # alternatives: "whitaker_hayes"
-  cosmic_ray_kernel_size: 5
+  # ── Keys below are forwarded directly to src.data.preprocess.preprocess_pipeline ──
 
-  baseline_method: "asls"               # alternatives: "airpls"
-  asls_lam: 1.0e+5                      # smoothness parameter
-  asls_p:   0.01                        # asymmetry parameter
+  cosmic_threshold: 5.0           # std-multiplier above median |Δ| for cosmic-ray detection
+
+  asls_lam: 1.0e+5                # smoothness parameter (Eilers AsLS)
+  asls_p:   0.01                  # asymmetry parameter
   asls_max_iter: 30
 
-  savgol_window: 11
+  savgol_window: 11               # must be odd
   savgol_polyorder: 3
 
-  snv_eps: 1.0e-8                       # numerical floor for std
+  snv_eps: 1.0e-8                 # numerical floor on std
