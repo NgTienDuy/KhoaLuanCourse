@@ -1,368 +1,331 @@
-"""Three reproducible split schemes for the Raman amino-acid dataset.
+"""Train / val / test splits for the AA Raman dataset.
 
-Schemes
--------
-**A — composition-level OOD** (default per project spec):
-    Group rows by `vial #`. Randomly assign whole vials to train / val / test
-    in proportions (num_train_vials, num_val_vials, num_test_vials), e.g.
-    42 / 6 / 6. The test set sees compositions never present in training.
+Two strategies, both producing a ``SplitIndices`` dict and persisting to
+JSON:
 
-**A' — sample-level random**:
-    Plain shuffled split at the row level (60 / 20 / 20 by default).
-    Less rigorous OOD but more data per split. Good for sanity-check upper-bound.
+* :func:`split_A_vial_level` — Scheme A. Composition-OOD. The 54 vials
+  (48 mixtures + 6 pure compounds) are partitioned 42 / 6 / 6 with a fixed
+  random seed. Every spectrum from a vial goes entirely to one split. This
+  is the **headline** OOD evaluation: at test time the model sees mixtures
+  whose composition was never observed during training.
+* :func:`split_A_sample_level` — Scheme A'. Random 60 / 20 / 20 across
+  the 4378 individual spectra. Less rigorous (samples from the same vial
+  can appear in train and test) but provides an upper bound and a sanity
+  check.
 
-**B — component-level OOD**:
-    Hold out ALL rows whose `vial #` produces (or contains) one specific
-    compound — e.g. Histidine. Test set therefore contains a compound the
-    model never saw during training. The most aggressive OOD.
+Both functions return identical-shape outputs and use the same JSON
+serialization, so downstream code can read either.
 
-Each scheme produces a `SplitIndices` instance with three numpy arrays of
-row indices into the full `RawSpectraTable`. They are also serialisable to
-JSON via `save_split_to_json()` so splits are reproducible across runs.
-
-Author: Day-1 sprint (T03)
+Reference: T07 in Chat-2 spec; PROJECT_REVISION_v2.md §3.1; the
+prior thesis baseline (HNKHSV.pptx) used the same vial-level split.
 """
+
 from __future__ import annotations
 
 import json
-import logging
+import re
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Sequence
 
 import numpy as np
 
-from src.data.dataloader import RawSpectraTable, SplitIndices, is_pure_vial
 
-log = logging.getLogger(__name__)
+# Canonical compound order — must match `AA_Data.csv` label columns and
+# `engine/reference_spectra.npy` row order. Single source of truth.
+COMPOUND_ORDER: list[str] = [
+    "Alanine",
+    "Asparagine",
+    "Aspartic Acid",
+    "Glutamic Acid",
+    "Histidine",
+    "Glucosamine",
+]
 
-
-# ───────────────────────────────────────────────────────────────────────────
-#  Helpers
-# ───────────────────────────────────────────────────────────────────────────
-
-def _filter_pure(
-    table: RawSpectraTable,
-    include_pure: bool,
-) -> np.ndarray:
-    """Return the row indices eligible to participate in the split.
-
-    If `include_pure` is False, pure-compound rows are excluded.
-    """
-    eligible = np.arange(table.num_samples)
-    if include_pure:
-        return eligible
-    pure_mask = table.pure_mask()
-    excluded = int(pure_mask.sum())
-    log.info(f"  Excluding {excluded} pure-sample rows from split eligibility.")
-    return eligible[~pure_mask]
+# Pure-vial regex. Matches ANY of:
+#   DL-alanine, L-alanine, L-asparagine, L-aspartic-acid, L-glutamic-acid,
+#   L-histidine, D-glucosamine, D-glucosamine-HCl, etc.
+# (See GROUNDWORK_SUMMARY §1.2 issue #8: real data uses DL-alanine,
+# not L-alanine — accept all stereo prefixes.)
+PURE_VIAL_REGEX = re.compile(
+    r"^(?:[DLdl]+-)?(?:alanine|asparagine|aspartic[- ]?acid|"
+    r"glutamic[- ]?acid|histidine|glucosamine)(?:[- ]hcl)?$",
+    re.IGNORECASE,
+)
 
 
-def _vial_to_rows_map(
-    table: RawSpectraTable,
-    eligible_indices: np.ndarray,
-) -> dict[str, np.ndarray]:
-    """Map each unique vial-id → array of its row indices, restricted to eligible rows."""
-    out: dict[str, np.ndarray] = {}
-    eligible_set = set(eligible_indices.tolist())
-    for vial in np.unique(table.vial_ids):
-        rows = np.where(table.vial_ids == vial)[0]
-        rows = rows[np.isin(rows, list(eligible_set))]
-        if rows.size > 0:
-            out[str(vial)] = rows
+@dataclass
+class SplitIndices:
+    """Train / val / test row-index lists into the spectra table."""
+
+    train: list[int]
+    val: list[int]
+    test: list[int]
+    scheme: str
+    seed: int
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @property
+    def n_total(self) -> int:
+        return len(self.train) + len(self.val) + len(self.test)
+
+    def assert_valid(self, n_rows: int) -> None:
+        """Raise if the split is malformed."""
+        all_idx = list(self.train) + list(self.val) + list(self.test)
+        if len(all_idx) != n_rows:
+            raise ValueError(
+                f"Split covers {len(all_idx)} rows but dataset has {n_rows}. "
+                "Some rows are missing or duplicated across splits."
+            )
+        if len(set(all_idx)) != n_rows:
+            raise ValueError("Train/val/test contain duplicate indices.")
+        if any(i < 0 or i >= n_rows for i in all_idx):
+            raise ValueError("Index out of range [0, n_rows).")
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def is_pure_vial(vial_name: str) -> bool:
+    """Return True if ``vial_name`` is one of the 6 pure-compound vials."""
+    if not isinstance(vial_name, str):
+        return False
+    return bool(PURE_VIAL_REGEX.match(vial_name.strip()))
+
+
+def _per_vial_rows(vial_ids: Sequence[str]) -> dict[str, list[int]]:
+    """Group row indices by their vial id."""
+    out: dict[str, list[int]] = {}
+    for i, v in enumerate(vial_ids):
+        out.setdefault(str(v), []).append(i)
     return out
 
 
-def _vial_contains_compound(
-    table: RawSpectraTable,
-    vial: str,
-    compound_name: str,
-    threshold: float = 0.0,
-) -> bool:
-    """True if any row with this vial-id has the given compound's fraction > threshold."""
-    if compound_name not in table.compound_names:
-        raise ValueError(
-            f"Unknown compound '{compound_name}'. "
-            f"Available: {table.compound_names}"
-        )
-    col_idx = table.compound_names.index(compound_name)
-    rows = np.where(table.vial_ids == vial)[0]
-    if rows.size == 0:
-        return False
-    return bool((table.labels[rows, col_idx] > threshold).any())
+def _check_compound_coverage(
+    train_idx: Sequence[int],
+    labels: np.ndarray,
+    threshold: float = 1e-3,
+) -> dict[str, int]:
+    """For each compound, count training rows where ratio > threshold.
 
-
-# ───────────────────────────────────────────────────────────────────────────
-#  Scheme A — composition-level OOD (whole-vial groups)
-# ───────────────────────────────────────────────────────────────────────────
-
-def split_A_composition_ood(
-    table: RawSpectraTable,
-    *,
-    num_train_vials: int = 42,
-    num_val_vials: int = 6,
-    num_test_vials: int = 6,
-    include_pure: bool = True,
-    seed: int = 42,
-) -> SplitIndices:
-    """Split by whole vials. Test/val vials hold compositions not seen at training time."""
-    eligible = _filter_pure(table, include_pure)
-    vial_to_rows = _vial_to_rows_map(table, eligible)
-    vials = sorted(vial_to_rows.keys())
-    n = len(vials)
-    requested = num_train_vials + num_val_vials + num_test_vials
-    if requested > n:
-        raise ValueError(
-            f"Scheme A: requested {requested} vials "
-            f"({num_train_vials}+{num_val_vials}+{num_test_vials}) "
-            f"but only {n} eligible vials exist."
-        )
-
-    rng = np.random.default_rng(seed)
-    perm = rng.permutation(vials)
-    train_vials = perm[:num_train_vials]
-    val_vials   = perm[num_train_vials : num_train_vials + num_val_vials]
-    test_vials  = perm[num_train_vials + num_val_vials :
-                       num_train_vials + num_val_vials + num_test_vials]
-
-    train_idx = np.concatenate([vial_to_rows[v] for v in train_vials])
-    val_idx   = np.concatenate([vial_to_rows[v] for v in val_vials])
-    test_idx  = np.concatenate([vial_to_rows[v] for v in test_vials])
-
-    sp = SplitIndices(
-        train=np.sort(train_idx),
-        val=np.sort(val_idx),
-        test=np.sort(test_idx),
-        scheme="A_composition_ood",
-    )
-    log.info(
-        f"  Scheme A: {len(train_vials)} train vials / {len(val_vials)} val / "
-        f"{len(test_vials)} test → {sp.summary()}"
-    )
-    return sp
-
-
-# ───────────────────────────────────────────────────────────────────────────
-#  Scheme A' — sample-level random
-# ───────────────────────────────────────────────────────────────────────────
-
-def split_A_prime_random(
-    table: RawSpectraTable,
-    *,
-    train_frac: float = 0.60,
-    val_frac: float = 0.20,
-    test_frac: float = 0.20,
-    include_pure: bool = True,
-    seed: int = 42,
-) -> SplitIndices:
-    """Plain random row-level split. Spectra from the same vial may appear
-    across train/val/test."""
-    if abs(train_frac + val_frac + test_frac - 1.0) > 1e-6:
-        raise ValueError(
-            f"Scheme A': fractions must sum to 1.0, got "
-            f"{train_frac + val_frac + test_frac}"
-        )
-    eligible = _filter_pure(table, include_pure)
-    rng = np.random.default_rng(seed)
-    perm = rng.permutation(eligible)
-    n = perm.size
-    cut1 = int(round(train_frac * n))
-    cut2 = int(round((train_frac + val_frac) * n))
-    sp = SplitIndices(
-        train=np.sort(perm[:cut1]),
-        val=np.sort(perm[cut1:cut2]),
-        test=np.sort(perm[cut2:]),
-        scheme="A_prime_random",
-    )
-    log.info(f"  Scheme A': {sp.summary()}")
-    return sp
-
-
-# ───────────────────────────────────────────────────────────────────────────
-#  Scheme B — component-level OOD (hold out one compound entirely)
-# ───────────────────────────────────────────────────────────────────────────
-
-def split_B_component_ood(
-    table: RawSpectraTable,
-    *,
-    holdout_compound: str = "Histidine",
-    val_frac_within_train_pool: float = 0.15,
-    include_pure: bool = True,
-    seed: int = 42,
-) -> SplitIndices:
-    """Reserve every vial that contains `holdout_compound` (>0) for the TEST set.
-
-    Of the remaining (train-pool) vials, a fraction `val_frac_within_train_pool`
-    is set aside for validation; the rest is the training set. This guarantees
-    the model never sees the held-out compound at training or validation time.
+    Used to assert: *"mỗi compound xuất hiện ít nhất 1 lần trong train"*
+    (T07 spec).
     """
-    eligible = _filter_pure(table, include_pure)
-    vial_to_rows = _vial_to_rows_map(table, eligible)
-    vials = sorted(vial_to_rows.keys())
-
-    test_vials, train_pool_vials = [], []
-    for v in vials:
-        if _vial_contains_compound(table, v, holdout_compound, threshold=0.0):
-            test_vials.append(v)
-        else:
-            train_pool_vials.append(v)
-
-    if not test_vials:
+    if labels.shape[1] != len(COMPOUND_ORDER):
         raise ValueError(
-            f"Scheme B: no eligible vial contains '{holdout_compound}'. "
-            f"Cannot build holdout test set."
+            f"labels has {labels.shape[1]} columns; expected {len(COMPOUND_ORDER)}."
         )
-    if not train_pool_vials:
-        raise ValueError(
-            f"Scheme B: every eligible vial contains '{holdout_compound}'. "
-            f"Train pool would be empty."
-        )
-
-    rng = np.random.default_rng(seed)
-    train_pool_vials = list(rng.permutation(train_pool_vials))
-    n_val = max(1, int(round(val_frac_within_train_pool * len(train_pool_vials))))
-    val_vials   = train_pool_vials[:n_val]
-    train_vials = train_pool_vials[n_val:]
-
-    train_idx = np.concatenate([vial_to_rows[v] for v in train_vials])
-    val_idx   = np.concatenate([vial_to_rows[v] for v in val_vials])
-    test_idx  = np.concatenate([vial_to_rows[v] for v in test_vials])
-
-    sp = SplitIndices(
-        train=np.sort(train_idx),
-        val=np.sort(val_idx),
-        test=np.sort(test_idx),
-        scheme=f"B_component_ood_holdout={holdout_compound}",
-    )
-    log.info(
-        f"  Scheme B (holdout={holdout_compound}): {len(train_vials)} train vials / "
-        f"{len(val_vials)} val / {len(test_vials)} test → {sp.summary()}"
-    )
-    return sp
+    train_labels = labels[list(train_idx)]
+    counts = (train_labels > threshold).sum(axis=0)
+    return {COMPOUND_ORDER[i]: int(counts[i]) for i in range(len(COMPOUND_ORDER))}
 
 
-# ───────────────────────────────────────────────────────────────────────────
-#  JSON persistence — reproducibility across runs / scripts
-# ───────────────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Scheme A — vial-level (composition OOD)
+# ---------------------------------------------------------------------------
 
-def save_split_to_json(split: SplitIndices, path: str | Path) -> None:
-    """Persist a split to a JSON file (lists of int indices)."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "scheme": split.scheme,
-        "train_indices": split.train.tolist(),
-        "val_indices":   split.val.tolist(),
-        "test_indices":  split.test.tolist(),
-        "n_train":       int(len(split.train)),
-        "n_val":         int(len(split.val)),
-        "n_test":        int(len(split.test)),
-    }
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
-    log.info(f"  Saved split to {path}")
-
-
-def load_split_from_json(path: str | Path) -> SplitIndices:
-    """Load a previously-saved split."""
-    path = Path(path)
-    with open(path, "r", encoding="utf-8") as f:
-        payload = json.load(f)
-    return SplitIndices(
-        train=np.array(payload["train_indices"], dtype=np.int64),
-        val=np.array(payload["val_indices"], dtype=np.int64),
-        test=np.array(payload["test_indices"], dtype=np.int64),
-        scheme=payload.get("scheme", ""),
-    )
-
-
-# ───────────────────────────────────────────────────────────────────────────
-#  Convenience: build all three splits in one call
-# ───────────────────────────────────────────────────────────────────────────
-
-def build_all_splits(
-    table: RawSpectraTable,
-    config: dict,
-) -> dict[str, SplitIndices]:
-    """Build A, A', and B splits using settings from `config['split']`.
+def split_A_vial_level(
+    vial_ids: Sequence[str],
+    labels: np.ndarray,
+    *,
+    seed: int = 42,
+    n_train_vials: int = 42,
+    n_val_vials: int = 6,
+    n_test_vials: int = 6,
+    include_pure_in_train: bool = True,
+) -> SplitIndices:
+    """Split the dataset by *vial*: 42 / 6 / 6 of 54 unique vials.
 
     Parameters
     ----------
-    config
-        Parsed `data_config.yaml` dictionary.
+    vial_ids : Sequence[str]
+        One vial id per row, length ``N``.
+    labels : np.ndarray
+        Shape ``(N, 6)`` composition labels (used only for coverage check).
+    seed : int
+        RNG seed.
+    n_train_vials, n_val_vials, n_test_vials : int
+        Number of vials in each split. Must sum to the number of unique
+        vials in ``vial_ids``.
+    include_pure_in_train : bool
+        If True (default), force the 6 pure-compound vials into train so
+        every compound is represented and the reconstruction module can
+        learn against pure references. The remaining 48 mixture vials are
+        split (n_train_vials - 6) / n_val_vials / n_test_vials. This
+        matches the prior-thesis convention.
 
     Returns
     -------
-    Dictionary {'A': ..., 'A_prime': ..., 'B': ...}.
+    SplitIndices
+
+    Raises
+    ------
+    ValueError
+        If the vial counts are inconsistent or any compound is missing
+        from the train split.
     """
-    cfg = config["split"]
-    include_pure = bool(cfg.get("include_pure_in_split", True))
+    rng = np.random.default_rng(seed)
+    vial_to_rows = _per_vial_rows(vial_ids)
+    all_vials = sorted(vial_to_rows.keys())
 
-    A = split_A_composition_ood(
-        table,
-        num_train_vials=cfg["A"]["num_train_vials"],
-        num_val_vials=cfg["A"]["num_val_vials"],
-        num_test_vials=cfg["A"]["num_test_vials"],
-        include_pure=include_pure,
-        seed=cfg["A"]["seed"],
-    )
-    A_prime = split_A_prime_random(
-        table,
-        train_frac=cfg["A_prime"]["train_frac"],
-        val_frac=cfg["A_prime"]["val_frac"],
-        test_frac=cfg["A_prime"]["test_frac"],
-        include_pure=include_pure,
-        seed=cfg["A_prime"]["seed"],
-    )
-    B = split_B_component_ood(
-        table,
-        holdout_compound=cfg["B"]["holdout_compound"],
-        val_frac_within_train_pool=cfg["B"].get("val_frac_within_train_pool", 0.15),
-        include_pure=include_pure,
-        seed=cfg["B"]["seed"],
-    )
-    return {"A": A, "A_prime": A_prime, "B": B}
+    expected_total = n_train_vials + n_val_vials + n_test_vials
+    if len(all_vials) != expected_total:
+        raise ValueError(
+            f"Found {len(all_vials)} unique vials but expected "
+            f"{expected_total} ({n_train_vials} train + {n_val_vials} val "
+            f"+ {n_test_vials} test). Check the vial column."
+        )
 
+    pure_vials = [v for v in all_vials if is_pure_vial(v)]
+    mixture_vials = [v for v in all_vials if not is_pure_vial(v)]
 
-def select_split(
-    table: RawSpectraTable,
-    config: dict,
-) -> dict[str, SplitIndices]:
-    """Return one or all splits depending on `config['split']['scheme']`.
-
-    * scheme="A"        → {"A": ...}
-    * scheme="A_prime"  → {"A_prime": ...}
-    * scheme="B"        → {"B": ...}
-    * scheme="all"      → all three (uses build_all_splits)
-    """
-    scheme = config["split"]["scheme"]
-    if scheme == "all":
-        return build_all_splits(table, config)
-    elif scheme == "A":
-        return {"A": split_A_composition_ood(
-            table,
-            num_train_vials=config["split"]["A"]["num_train_vials"],
-            num_val_vials=config["split"]["A"]["num_val_vials"],
-            num_test_vials=config["split"]["A"]["num_test_vials"],
-            include_pure=config["split"].get("include_pure_in_split", True),
-            seed=config["split"]["A"]["seed"],
-        )}
-    elif scheme == "A_prime":
-        return {"A_prime": split_A_prime_random(
-            table,
-            train_frac=config["split"]["A_prime"]["train_frac"],
-            val_frac=config["split"]["A_prime"]["val_frac"],
-            test_frac=config["split"]["A_prime"]["test_frac"],
-            include_pure=config["split"].get("include_pure_in_split", True),
-            seed=config["split"]["A_prime"]["seed"],
-        )}
-    elif scheme == "B":
-        return {"B": split_B_component_ood(
-            table,
-            holdout_compound=config["split"]["B"]["holdout_compound"],
-            val_frac_within_train_pool=config["split"]["B"].get(
-                "val_frac_within_train_pool", 0.15),
-            include_pure=config["split"].get("include_pure_in_split", True),
-            seed=config["split"]["B"]["seed"],
-        )}
+    if include_pure_in_train:
+        if len(pure_vials) > n_train_vials:
+            raise ValueError(
+                f"More pure vials ({len(pure_vials)}) than train slots "
+                f"({n_train_vials})."
+            )
+        n_train_mix = n_train_vials - len(pure_vials)
+        # Shuffle ONLY the mixture vials.
+        shuffled = list(mixture_vials)
+        rng.shuffle(shuffled)
+        train_v = pure_vials + shuffled[:n_train_mix]
+        val_v = shuffled[n_train_mix:n_train_mix + n_val_vials]
+        test_v = shuffled[n_train_mix + n_val_vials:
+                          n_train_mix + n_val_vials + n_test_vials]
     else:
-        raise ValueError(f"Unknown split scheme: {scheme!r}")
+        shuffled = list(all_vials)
+        rng.shuffle(shuffled)
+        train_v = shuffled[:n_train_vials]
+        val_v = shuffled[n_train_vials:n_train_vials + n_val_vials]
+        test_v = shuffled[n_train_vials + n_val_vials:expected_total]
+
+    train_idx = sorted(i for v in train_v for i in vial_to_rows[v])
+    val_idx = sorted(i for v in val_v for i in vial_to_rows[v])
+    test_idx = sorted(i for v in test_v for i in vial_to_rows[v])
+
+    split = SplitIndices(
+        train=train_idx, val=val_idx, test=test_idx,
+        scheme="A_vial_level", seed=seed,
+    )
+    split.assert_valid(n_rows=len(vial_ids))
+
+    # Coverage check.
+    coverage = _check_compound_coverage(train_idx, labels)
+    missing = [c for c, n in coverage.items() if n == 0]
+    if missing:
+        raise ValueError(
+            f"After Scheme-A split, no train rows contain compound(s): "
+            f"{missing}. Coverage = {coverage}. Try a different seed or "
+            f"set include_pure_in_train=True."
+        )
+    return split
+
+
+# ---------------------------------------------------------------------------
+# Scheme A' — sample-level (random)
+# ---------------------------------------------------------------------------
+
+def split_A_sample_level(
+    n_rows: int,
+    labels: np.ndarray,
+    *,
+    seed: int = 42,
+    train_frac: float = 0.60,
+    val_frac: float = 0.20,
+    test_frac: float = 0.20,
+) -> SplitIndices:
+    """Random per-spectrum split (60 / 20 / 20 by default).
+
+    Parameters
+    ----------
+    n_rows : int
+        Total number of spectra.
+    labels : np.ndarray
+        Shape ``(N, 6)`` (used for the coverage check).
+    seed : int
+        RNG seed.
+    train_frac, val_frac, test_frac : float
+        Must sum to ~1.0.
+
+    Returns
+    -------
+    SplitIndices
+    """
+    if not np.isclose(train_frac + val_frac + test_frac, 1.0, atol=1e-6):
+        raise ValueError(
+            f"Fractions must sum to 1.0; got "
+            f"{train_frac} + {val_frac} + {test_frac} = "
+            f"{train_frac + val_frac + test_frac}."
+        )
+
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(n_rows)
+    n_train = int(round(train_frac * n_rows))
+    n_val = int(round(val_frac * n_rows))
+    # Test gets the remainder (handles rounding drift).
+    train_idx = sorted(perm[:n_train].tolist())
+    val_idx = sorted(perm[n_train:n_train + n_val].tolist())
+    test_idx = sorted(perm[n_train + n_val:].tolist())
+
+    split = SplitIndices(
+        train=train_idx, val=val_idx, test=test_idx,
+        scheme="A_prime_sample_level", seed=seed,
+    )
+    split.assert_valid(n_rows=n_rows)
+
+    coverage = _check_compound_coverage(train_idx, labels)
+    missing = [c for c, n in coverage.items() if n == 0]
+    if missing:
+        # Extremely unlikely with random 60% of 4378 rows, but defend anyway.
+        raise ValueError(
+            f"Random split happened to miss compound(s) {missing} in train. "
+            f"Try a different seed."
+        )
+    return split
+
+
+# ---------------------------------------------------------------------------
+# JSON I/O
+# ---------------------------------------------------------------------------
+
+def save_split(split: SplitIndices, path: str | Path) -> Path:
+    """Persist a SplitIndices to JSON at ``path``.
+
+    Format::
+
+        {"train": [...], "val": [...], "test": [...],
+         "scheme": "A_vial_level", "seed": 42}
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(split.to_dict(), f, indent=2)
+    return path
+
+
+def load_split(path: str | Path) -> SplitIndices:
+    """Load a previously-saved SplitIndices."""
+    with Path(path).open("r", encoding="utf-8") as f:
+        d = json.load(f)
+    return SplitIndices(
+        train=list(d["train"]),
+        val=list(d["val"]),
+        test=list(d["test"]),
+        scheme=d.get("scheme", "unknown"),
+        seed=int(d.get("seed", -1)),
+    )
+
+
+__all__ = [
+    "COMPOUND_ORDER",
+    "SplitIndices",
+    "is_pure_vial",
+    "split_A_vial_level",
+    "split_A_sample_level",
+    "save_split",
+    "load_split",
+]
